@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>입지 평가 자동화 시스템</title>
+  <script type="text/javascript" src="https://openapi.map.naver.com/openapi/v3/maps.js?ncpClientId=YOUR_CLIENT_ID&submodules=geocoder"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 30px; background: #f4f4f4; }
+    h1 { color: #2b6cb0; }
+    #map { width: 100%; height: 400px; margin-top: 20px; }
+    .result { margin-top: 20px; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    input, button { padding: 8px; font-size: 16px; margin: 5px 0; }
+    .chart-container { width: 400px; margin-top: 30px; }
+  </style>
+</head>
+<body>
+  <h1>신규 건설 사업장 입지 평가 자동화 시스템</h1>
+  <input type="text" id="address" placeholder="사업장 주소를 입력하세요" size="50">
+  <button onclick="searchAddress()">검색</button>
+
+  <div id="map"></div>
+  <div class="result" id="scoreOutput"></div>
+  <div class="chart-container">
+    <canvas id="scoreChart"></canvas>
+  </div>
+
+  <script>
+    let map;
+    let marker;
+
+    function searchAddress() {
+      const address = document.getElementById("address").value;
+      naver.maps.Service.geocode({ query: address }, function(status, response) {
+        if (status !== naver.maps.Service.Status.OK) {
+          alert('주소를 찾을 수 없습니다.');
+          return;
+        }
+        const result = response.v2.addresses[0];
+        const lat = parseFloat(result.y);
+        const lng = parseFloat(result.x);
+        const coord = new naver.maps.LatLng(lat, lng);
+
+        if (!map) {
+          map = new naver.maps.Map('map', {
+            center: coord,
+            zoom: 16
+          });
+        } else {
+          map.setCenter(coord);
+        }
+
+        if (marker) marker.setMap(null);
+        marker = new naver.maps.Marker({ position: coord, map: map });
+
+        runEvaluation(coord);
+      });
+    }
+
+    function runEvaluation(coord) {
+      // 예시: 항목별 점수를 임의로 부여
+      const scores = {
+        complexScale: "B",
+        infraAccess: "A",
+        schoolAccess: "C"
+      };
+      document.getElementById("scoreOutput").innerHTML = `
+        <strong>입지 평가 결과:</strong><br>
+        🏢 주거 단지 규모: ${scores.complexScale}<br>
+        🏧 인프라 접근성: ${scores.infraAccess}<br>
+        🏫 초등학교 접근성: ${scores.schoolAccess}
+      `;
+
+      const labels = ["주거단지", "인프라", "초등학교"];
+      const data = [
+        scoreToNumber(scores.complexScale),
+        scoreToNumber(scores.infraAccess),
+        scoreToNumber(scores.schoolAccess)
+      ];
+      drawChart(labels, data);
+    }
+
+    function scoreToNumber(score) {
+      return { A: 5, B: 4, C: 3, D: 2, E: 1 }[score] || 0;
+    }
+
+    function drawChart(labels, data) {
+      const ctx = document.getElementById('scoreChart');
+      new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: '입지 평가 점수',
+            data: data,
+            borderWidth: 1
+          }]
+        },
+        options: {
+          scales: {
+            y: { beginAtZero: true, max: 5 }
+          }
+        }
+      });
+    }
+  </script>
+</body>
+</html>
